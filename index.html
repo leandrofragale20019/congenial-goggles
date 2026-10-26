@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Promille-Uhr</title>
+  <meta name="description" content="Schätzt deinen Blutalkohol und zeigt, wann du wieder unter den Grenzwerten bzw. nüchtern bist.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f3ee" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+  <link rel="stylesheet" href="style.css">
+  <script src="calc.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>Promille-Uhr</h1>
+      <p class="tagline">Schätzt deinen Blutalkohol und zeigt, wann du wieder nüchtern bist.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="disclaimer" role="note">
+      <strong>Nur eine Schätzung.</strong>
+      Dein echter Wert kann deutlich höher liegen. Fahre nie auf Basis dieser App Auto –
+      wer getrunken hat, lässt das Auto stehen.
+    </p>
+
+    <div class="layout">
+      <!-- Ergebnis -->
+      <section class="card results" aria-labelledby="results-title">
+        <h2 id="results-title" class="visually-hidden">Ergebnis</h2>
+
+        <div class="now-block">
+          <div class="now-label">Jetzt geschätzt</div>
+          <div class="big" aria-live="polite">
+            <span id="current">0,00</span><span class="unit">‰</span>
+          </div>
+          <span id="status" class="pill status-ok">nüchtern</span>
+        </div>
+
+        <p id="person-error" class="hint hint-error" hidden></p>
+
+        <div class="tiles">
+          <div class="tile" id="tile-under05">
+            <div class="tile-label">unter 0,5 ‰</div>
+            <div class="tile-time">–</div>
+            <div class="tile-sub">&nbsp;</div>
+          </div>
+          <div class="tile" id="tile-under01">
+            <div class="tile-label">unter 0,1 ‰</div>
+            <div class="tile-time">–</div>
+            <div class="tile-sub">&nbsp;</div>
+          </div>
+          <div class="tile" id="tile-zero">
+            <div class="tile-label">0,0 ‰</div>
+            <div class="tile-time">–</div>
+            <div class="tile-sub">&nbsp;</div>
+          </div>
+        </div>
+
+        <figure class="chart-wrap">
+          <svg id="chart" viewBox="0 0 640 260" role="img" aria-label="Verlaufskurve des Promillewerts"></svg>
+          <figcaption id="chart-empty" class="chart-empty">Noch keine Getränke erfasst.</figcaption>
+        </figure>
+
+        <dl class="info">
+          <div><dt>Alkohol total</dt><dd id="info-grams">0 g</dd></div>
+          <div><dt>Standardgläser</dt><dd id="info-std">0</dd></div>
+          <div><dt>Höchstwert</dt><dd id="info-peak">–</dd></div>
+        </dl>
+
+        <p id="age-notice" class="hint hint-warn" hidden>
+          <strong>Unter 18:</strong> In der Schweiz sind Bier, Wein und Most erst ab 16 erlaubt,
+          Spirituosen (auch Shots, Longdrinks, Cocktails und Alcopops mit Schnaps) erst ab 18.
+          Die Formeln sind für Erwachsene gemacht – bei Jugendlichen ist die Schätzung noch ungenauer.
+        </p>
+      </section>
+
+      <div class="inputs">
+        <!-- Körper -->
+        <section class="card" aria-labelledby="body-title">
+          <h2 id="body-title">Körper</h2>
+
+          <div class="field">
+            <span class="field-label" id="sex-label">Geschlecht</span>
+            <div class="segmented" role="group" aria-labelledby="sex-label">
+              <button type="button" class="seg-btn" data-sex="mann" aria-pressed="true">Mann</button>
+              <button type="button" class="seg-btn" data-sex="frau" aria-pressed="false">Frau</button>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <label class="field">
+              <span class="field-label">Alter</span>
+              <span class="input-unit"><input id="age" type="number" inputmode="numeric" min="10" max="120" step="1"><span>J.</span></span>
+            </label>
+            <label class="field">
+              <span class="field-label">Gewicht</span>
+              <span class="input-unit"><input id="weight" type="number" inputmode="decimal" min="30" max="300" step="0.5"><span>kg</span></span>
+            </label>
+            <label class="field">
+              <span class="field-label">Grösse</span>
+              <span class="input-unit"><input id="height" type="number" inputmode="numeric" min="100" max="250" step="1"><span>cm</span></span>
+            </label>
+          </div>
+
+          <fieldset class="field">
+            <legend class="field-label">Magen</legend>
+            <div class="segmented">
+              <label class="seg"><input type="radio" name="stomach" value="leer"><span>leer</span></label>
+              <label class="seg"><input type="radio" name="stomach" value="etwas"><span>etwas gegessen</span></label>
+              <label class="seg"><input type="radio" name="stomach" value="mahlzeit"><span>Mahlzeit</span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend class="field-label">Abbaurate <span class="muted">(‰ pro Stunde)</span></legend>
+            <div class="segmented">
+              <label class="seg"><input type="radio" name="rate" value="0.10"><span>0,10</span></label>
+              <label class="seg"><input type="radio" name="rate" value="0.15"><span>0,15 <small>Standard</small></span></label>
+              <label class="seg"><input type="radio" name="rate" value="0.20"><span>0,20</span></label>
+            </div>
+          </fieldset>
+        </section>
+
+        <!-- Getränke -->
+        <section class="card" aria-labelledby="drinks-title">
+          <div class="card-head">
+            <h2 id="drinks-title">Getränke</h2>
+            <button type="button" id="clear-drinks" class="link-btn" hidden>Alle löschen</button>
+          </div>
+
+          <div class="presets" id="presets"></div>
+
+          <ul class="drink-list" id="drink-list"></ul>
+          <p class="drink-empty" id="drink-empty">Tippe oben auf ein Getränk, um es hinzuzufügen.</p>
+          <p class="hint small">Uhrzeiten mehr als 30 Minuten in der Zukunft zählen als gestern (vor Mitternacht).</p>
+        </section>
+      </div>
+    </div>
+
+    <!-- Kater-Tipps -->
+    <section class="card tips" aria-labelledby="tips-title">
+      <h2 id="tips-title">Kater vermeiden</h2>
+      <div class="tips-grid">
+        <div>
+          <h3>Vorher</h3>
+          <ul>
+            <li><strong>Richtig essen:</strong> eine Mahlzeit mit Fett und Eiweiss bremst die Aufnahme.</li>
+            <li><strong>Limit festlegen:</strong> vorher entscheiden, wie viele Gläser es werden – und wie du heimkommst.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Währenddessen</h3>
+          <ul>
+            <li><strong>Jedes zweite Glas Wasser.</strong></li>
+            <li><strong>Langsam trinken:</strong> etwa 1 Standardglas pro Stunde.</li>
+            <li><strong>Helle statt dunkle Spirituosen:</strong> Wodka oder Gin enthalten weniger Begleitstoffe als Whisky, Rum oder Brandy.</li>
+            <li><strong>Vorsicht mit Shots und Energydrinks:</strong> Shots treiben den Wert schnell hoch, Koffein überdeckt die Müdigkeit, nicht den Rausch.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Danach</h3>
+          <ul>
+            <li><strong>Vor dem Schlafen:</strong> ein grosses Glas Wasser und etwas Salziges oder ein Elektrolytgetränk.</li>
+            <li><strong>Viel schlafen.</strong></li>
+            <li><strong>Kein «Konterbier»</strong> – das verschiebt den Kater nur.</li>
+            <li><strong>Kein Paracetamol mit Alkohol</strong> – belastet die Leber.</li>
+            <li><strong>Ibuprofen nur mit Essen</strong> – sonst leidet der Magen.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Mythen</h3>
+          <ul>
+            <li><strong>Kaffee, kalte Dusche, Sport</strong> machen vielleicht wacher, bauen aber keinen Alkohol ab. Nur Zeit hilft.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notfall -->
+    <section class="emergency" aria-labelledby="emergency-title">
+      <h2 id="emergency-title">Notfall: Alkoholvergiftung</h2>
+      <p>Sofort Hilfe rufen, wenn jemand:</p>
+      <ul>
+        <li>nicht mehr weckbar ist,</li>
+        <li>langsam oder unregelmässig atmet,</li>
+        <li>im Halbschlaf erbricht,</li>
+        <li>kalt ist oder bläuliche Haut/Lippen hat,</li>
+        <li>einen Krampfanfall hat.</li>
+      </ul>
+      <p><strong>Person in Seitenlage bringen und nie allein lassen.</strong></p>
+      <ul class="numbers">
+        <li><span class="num">144</span> Sanität (Schweiz)</li>
+        <li><span class="num">112</span> Europäischer Notruf</li>
+        <li><span class="num">145</span> Tox Info Suisse</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      Schätzung nach Widmark/Watson. Kein medizinisches Gerät. Deine Eingaben bleiben nur in diesem Browser gespeichert.
+    </div>
+  </footer>
+
+  <template id="drink-row-tpl">
+    <li class="drink">
+      <div class="drink-top">
+        <input class="drink-name" type="text" aria-label="Name des Getränks" maxlength="40">
+        <button type="button" class="drink-del" aria-label="Getränk löschen" title="Löschen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="drink-fields">
+        <label><span>Menge</span><span class="input-unit"><input class="drink-cl" type="text" inputmode="decimal"><span>cl</span></span></label>
+        <label><span>Alkohol</span><span class="input-unit"><input class="drink-vol" type="text" inputmode="decimal"><span>%</span></span></label>
+        <label><span>Uhrzeit</span><input class="drink-time" type="time"></label>
+      </div>
+      <div class="drink-grams"></div>
+    </li>
+  </template>
+</body>
+</html>
