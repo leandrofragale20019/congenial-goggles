@@ -2,14 +2,15 @@
 
 Eine kleine Web-App, die den Blutalkohol (‰) schätzt. Du gibst ein, was du wann getrunken hast,
 dazu Geschlecht, Alter, Gewicht, Grösse, wie voll dein Magen ist und eine Abbaurate.
-Die App zeigt:
+Die App ist fürs Smartphone gebaut und bewusst schlicht:
 
-- den aktuell geschätzten Promillewert mit Status («nicht fahren», «Neulenker nicht fahren»,
-  «fast nüchtern», «nüchtern»),
-- wann du voraussichtlich unter 0,5 ‰, unter 0,1 ‰ und bei 0,0 ‰ bist (Uhrzeit + Countdown),
-- eine Verlaufskurve mit Grenzwerten, «jetzt»-Linie und Getränke-Markierungen,
-- Total Alkohol in Gramm, Standardgläser (à 10 g) und den Höchstwert,
-- Tipps gegen den Kater sowie eine Notfall-Box zur Alkoholvergiftung.
+- **Startseite (`index.html`)**: oben gross der aktuelle Promillewert mit Status
+  («nicht fahren», «Neulenker nicht fahren», «fast nüchtern», «nüchtern»), ob er noch steigt,
+  und wann du unter 0,5 ‰, unter 0,1 ‰ und bei 0,0 ‰ bist. Darunter Knöpfe zum Hinzufügen
+  von Getränken mit einem Tipp und die Liste des Getrunkenen (zum Bearbeiten antippen, mit
+  «Rückgängig» nach dem Löschen). Verlaufskurve und Körperdaten sind einklappbar.
+- **Infoseite (`info.html`)**: Notfall-Box zur Alkoholvergiftung, Kater-Tipps,
+  kurze Erklärung der Rechnung und Grenzwerte.
 
 Alles wird alle 30 Sekunden neu berechnet. Die Eingaben bleiben im `localStorage` des Browsers
 gespeichert und verlassen dein Gerät nie.
@@ -31,7 +32,8 @@ node calc.test.js
 
 | Datei          | Inhalt                                                             |
 |----------------|--------------------------------------------------------------------|
-| `index.html`   | Aufbau der Seite                                                   |
+| `index.html`   | Startseite: Promillewert, Getränke, Verlauf, Angaben               |
+| `info.html`    | Notfall, Kater-Tipps, Erklärungen                                  |
 | `style.css`    | Gestaltung, alle Farben als CSS-Variablen, Hell- und Dunkelmodus   |
 | `app.js`       | Oberfläche: Eingaben, Speichern, Anzeige, SVG-Kurve                |
 | `calc.js`      | Berechnung als reine Funktionen (ohne DOM), im Browser und in Node |
