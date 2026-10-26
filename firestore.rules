@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Jede Person darf nur ihr eigenes Dokument users/{uid} lesen und schreiben.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function validData() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['person', 'drinks', 'updatedAt'])
+          && d.person is map
+          && d.person.size() <= 10
+          && d.drinks is list
+          && d.drinks.size() <= 200
+          && d.updatedAt is int;
+      }
+
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner() && validData();
+    }
+
+    // Alles andere ist gesperrt
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

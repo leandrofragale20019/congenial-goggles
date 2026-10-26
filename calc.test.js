@@ -134,6 +134,15 @@ test('Uhrzeit > 30 min in der Zukunft gilt als gestern', () => {
   assert.equal(C.resolveDrinkTime('25:00', now), null);
 });
 
+test('Gespeichertes Getränk bleibt am Tag der Erfassung', () => {
+  const addedAt = new Date(2026, 9, 26, 20, 5).getTime();
+  const drink = { time: '20:00', addedAt };
+  const nextEvening = new Date(2026, 9, 27, 20, 10).getTime();
+  assert.equal(C.drinkTimestamp(drink, nextEvening), new Date(2026, 9, 26, 20, 0).getTime());
+  // Ohne addedAt zählt "jetzt" als Bezug
+  assert.equal(C.drinkTimestamp({ time: '20:00' }, nextEvening), new Date(2026, 9, 27, 20, 0).getTime());
+});
+
 test('valueAt interpoliert und ist ausserhalb 0', () => {
   const sim = C.simulate(mann, [{ grams: 30, time: BASE }]);
   assert.equal(C.valueAt(sim, BASE - HOUR), 0);

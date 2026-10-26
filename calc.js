@@ -90,6 +90,16 @@
     return d.getTime();
   }
 
+  /**
+   * Zeitstempel eines gespeicherten Getränks. Die Uhrzeit wird relativ zum Moment
+   * der Erfassung (addedAt) gedeutet, damit alte Einträge nicht am nächsten Tag
+   * wieder als "heute" erscheinen.
+   */
+  function drinkTimestamp(drink, now) {
+    const ref = Number.isFinite(drink && drink.addedAt) ? drink.addedAt : now;
+    return resolveDrinkTime(drink && drink.time, ref);
+  }
+
   function emptyResult() {
     return {
       points: [],
@@ -260,6 +270,7 @@
     permillePerGram,
     validatePerson,
     resolveDrinkTime,
+    drinkTimestamp,
     simulate,
     lastCrossing,
     valueAt,

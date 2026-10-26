@@ -32,27 +32,48 @@
 
   /* ---------- Zustand & Speicher ---------- */
 
+  const MAX_AGE_MS = 24 * 3600 * 1000; // Getränke verschwinden nach 24 h
+
   let firstVisit = false;
   let state = load();
+  const listeners = [];
+
+  function freshState() {
+    return { person: { ...DEFAULT_PERSON }, drinks: [], updatedAt: 0 };
+  }
+
+  /** Daten aus Speicher oder Cloud in ein sauberes Format bringen. */
+  function normalize(data) {
+    const now = Date.now();
+    return {
+      person: { ...DEFAULT_PERSON, ...(data && data.person) },
+      drinks: Array.isArray(data && data.drinks)
+        ? data.drinks
+          .filter((d) => d && typeof d.id === 'string')
+          .map((d) => ({
+            id: d.id,
+            name: String(d.name || ''),
+            cl: String(d.cl ?? ''),
+            vol: String(d.vol ?? ''),
+            time: String(d.time || ''),
+            addedAt: Number.isFinite(d.addedAt) ? d.addedAt : now,
+          }))
+        : [],
+      updatedAt: Number.isFinite(data && data.updatedAt) ? data.updatedAt : 0,
+    };
+  }
 
   function load() {
-    const fresh = { person: { ...DEFAULT_PERSON }, drinks: [] };
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) {
         firstVisit = true;
-        return fresh;
+        return freshState();
       }
-      const data = JSON.parse(raw);
-      return {
-        person: { ...DEFAULT_PERSON, ...(data && data.person) },
-        drinks: Array.isArray(data && data.drinks)
-          ? data.drinks.filter((d) => d && typeof d.id === 'string')
-          : [],
-      };
+      return normalize(JSON.parse(raw));
     } catch (e) {
       firstVisit = true;
-      return fresh;
+      return freshState();
     }
   }
 
@@ -103,7 +124,7 @@
 
   /* ---------- Körperdaten ---------- */
 
-  function initProfile() {
+  function fillProfileForm() {
     const p = state.person;
     $('#age').value = p.age;
     $('#weight').value = p.weight;
@@ -115,6 +136,10 @@
     const rate = $$('input[name="rate"]').find((r) => Number(r.value) === Number(p.rate))
       || $('input[name="rate"][value="0.15"]');
     rate.checked = true;
+  }
+
+  function initProfile() {
+    fillProfileForm();
 
     $$('.seg-btn[data-sex]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -221,6 +246,7 @@
       cl: cl === '' ? '' : numToInput(cl),
       vol: vol === '' ? '' : numToInput(vol),
       time: C.formatClock(Date.now()),
+      addedAt: Date.now(),
     });
     if (open) openAfterRender = id;
     renderDrinks();
@@ -324,6 +350,7 @@
   function showToast(text, undo) {
     $('#toast-text').textContent = text;
     toastUndo = undo;
+    $('#toast-undo').hidden = !undo;
     $('#toast').hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, TOAST_MS);
@@ -345,12 +372,32 @@
   /* ---------- Berechnung & Anzeige ---------- */
 
   function changed() {
+    state.updatedAt = Date.now();
     save();
     update();
+    listeners.forEach((fn) => {
+      try { fn(state); } catch (e) { /* Fehler im Konto-Modul nicht weitergeben */ }
+    });
+  }
+
+  /** Getränke, die älter als 24 h sind, entfernen. */
+  function pruneOldDrinks(now) {
+    const keep = state.drinks.filter((d) => {
+      const t = C.drinkTimestamp(d, now);
+      return t === null || now - t < MAX_AGE_MS;
+    });
+    if (keep.length === state.drinks.length) return false;
+    state.drinks = keep;
+    return true;
   }
 
   function update() {
     const now = Date.now();
+    if (pruneOldDrinks(now)) {
+      renderDrinks();
+      changed();
+      return;
+    }
     const person = personForCalc();
     const errors = C.validatePerson(person);
 
@@ -365,7 +412,7 @@
       .map((d) => ({
         name: d.name,
         grams: C.gramsAlcohol(d.cl, d.vol),
-        time: C.resolveDrinkTime(d.time, now),
+        time: C.drinkTimestamp(d, now),
       }))
       .filter((d) => d.grams > 0 && d.time !== null);
 
@@ -540,10 +587,51 @@
     );
   }
 
+  /* ---------- Schnittstelle für das Konto-Modul (account.js) ---------- */
+
+  window.PromilleApp = {
+    /** Kopie der aktuellen Daten. */
+    getState() {
+      return JSON.parse(JSON.stringify(state));
+    },
+    /** Daten ersetzen (z. B. aus der Cloud), ohne updatedAt neu zu setzen. */
+    replaceState(data) {
+      state = normalize(data);
+      save();
+      fillProfileForm();
+      renderDrinks();
+      update();
+    },
+    /** Lokale Daten löschen (beim Abmelden). */
+    clearLocal() {
+      state = freshState();
+      try { window.localStorage.removeItem(STORAGE_KEY); } catch (e) { /* egal */ }
+      fillProfileForm();
+      renderDrinks();
+      update();
+    },
+    /** Wird bei jeder Änderung durch den Nutzer aufgerufen. */
+    onChange(fn) {
+      listeners.push(fn);
+    },
+    showToast(text) {
+      showToast(text, null);
+    },
+  };
+
   /* ---------- Start ---------- */
+
+  function registerServiceWorker() {
+    const secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!('serviceWorker' in navigator) || !secure) return;
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { /* offline-Modus optional */ });
+    });
+  }
 
   function init() {
     if (!C) return;
+    registerServiceWorker();
     initProfile();
     initPresets();
     initDrinkList();

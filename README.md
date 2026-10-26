@@ -11,6 +11,10 @@ Die App ist fürs Smartphone gebaut und bewusst schlicht:
   «Rückgängig» nach dem Löschen). Verlaufskurve und Körperdaten sind einklappbar.
 - **Infoseite (`info.html`)**: Notfall-Box zur Alkoholvergiftung, Kater-Tipps,
   kurze Erklärung der Rechnung und Grenzwerte.
+- **Konto (optional)**: Anmelden mit E-Mail/Passwort oder Google. Angaben und Getränke werden
+  dann über Firebase auf allen Geräten synchronisiert. Ohne Konto bleibt alles auf dem Gerät.
+- **Als App installierbar** (PWA): «Zum Home-Bildschirm hinzufügen», funktioniert auch offline.
+- Getränke verschwinden 24 Stunden nach dem Trinken automatisch.
 
 Alles wird alle 30 Sekunden neu berechnet. Die Eingaben bleiben im `localStorage` des Browsers
 gespeichert und verlassen dein Gerät nie.
@@ -19,8 +23,47 @@ gespeichert und verlassen dein Gerät nie.
 
 ## Starten
 
-`index.html` im Browser öffnen (Doppelklick). Es braucht keinen Server, keinen Build und keine
-Abhängigkeiten.
+`index.html` im Browser öffnen (Doppelklick). Es braucht keinen Build und keine Abhängigkeiten.
+Konto, Offline-Modus und Installation funktionieren erst über `http://localhost` oder `https://`,
+z. B. mit:
+
+```sh
+python -m http.server 8000
+# dann http://localhost:8000 öffnen
+```
+
+## Veröffentlichen (gratis mit Firebase)
+
+Firebase ist im «Spark»-Tarif gratis, ohne Kreditkarte. Einmalig, ca. 10–15 Minuten:
+
+1. **Projekt anlegen**: <https://console.firebase.google.com> → «Projekt hinzufügen»,
+   z. B. `promille-uhr`. Google Analytics ausschalten (brauchen wir nicht).
+2. **Web-App registrieren**: Projektübersicht → Symbol `</>` → Name «Promille-Uhr»
+   (Haken bei Firebase Hosting setzen). Die angezeigten Werte (`apiKey`, `authDomain`, …) in
+   `firebase-config.js` eintragen. Bei `authDomain` am besten `DEINE-PROJEKT-ID.web.app` eintragen.
+3. **Anmeldung aktivieren**: Build → Authentication → «Jetzt starten» → Anmeldemethoden:
+   «E-Mail/Passwort» und «Google» aktivieren. Unter Vorlagen die Sprache auf Deutsch stellen.
+4. **Datenbank anlegen**: Build → Firestore Database → «Datenbank erstellen» →
+   Standort **europe-west6 (Zürich)** → «Im Produktionsmodus starten».
+   (Der Standort steht so in der Datenschutzerklärung und lässt sich später nicht ändern.)
+5. **Projekt-ID** in `.firebaserc` statt `DEINE-PROJEKT-ID` eintragen.
+6. **Datenschutzerklärung**: in `datenschutz.html` die gelb markierten Platzhalter
+   (Name, Ort, E-Mail) ersetzen.
+7. **Hochladen** (braucht Node.js):
+
+   ```sh
+   npm install -g firebase-tools
+   firebase login
+   firebase deploy
+   ```
+
+   Danach läuft die App unter `https://DEINE-PROJEKT-ID.web.app`.
+
+Bei Änderungen später: in `sw.js` die Versionsnummer bei `CACHE` erhöhen und wieder
+`firebase deploy` ausführen.
+
+Die Firebase-Werte in `firebase-config.js` sind nicht geheim. Die Daten schützen die Regeln in
+`firestore.rules`: Jede Person kann nur ihr eigenes Dokument `users/{uid}` lesen und schreiben.
 
 Tests (Node.js ab Version 18):
 
@@ -34,6 +77,11 @@ node calc.test.js
 |----------------|--------------------------------------------------------------------|
 | `index.html`   | Startseite: Promillewert, Getränke, Verlauf, Angaben               |
 | `info.html`    | Notfall, Kater-Tipps, Erklärungen                                  |
+| `datenschutz.html` | Datenschutzerklärung                                           |
+| `account.js`   | Konto & Synchronisierung über Firebase (lädt das SDK vom CDN)      |
+| `firebase-config.js` | Firebase-Zugangsdaten (leer = ohne Konto)                    |
+| `sw.js`, `manifest.webmanifest`, `icons/` | Installierbare App, Offline-Modus          |
+| `firebase.json`, `.firebaserc`, `firestore.rules` | Hosting- und Datenbank-Einstellungen |
 | `style.css`    | Gestaltung, alle Farben als CSS-Variablen, Hell- und Dunkelmodus   |
 | `app.js`       | Oberfläche: Eingaben, Speichern, Anzeige, SVG-Kurve                |
 | `calc.js`      | Berechnung als reine Funktionen (ohne DOM), im Browser und in Node |
