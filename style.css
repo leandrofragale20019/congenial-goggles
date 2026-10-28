@@ -289,6 +289,30 @@ a { color: var(--accent); }
 .preset.flash { background: var(--accent-soft); border-color: var(--accent); }
 .preset.custom { border-style: dashed; box-shadow: none; background: transparent; }
 .preset.custom b { color: var(--accent); }
+.preset.favorite { border-color: var(--accent); }
+.preset.favorite b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+.preset.removing { border-style: dashed; background: transparent; box-shadow: none; }
+.preset.removing small { color: var(--danger); }
+.preset .remove-x {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.7rem;
+  display: grid;
+  place-items: center;
+}
+.drink-fav { display: block; margin: 4px 0 8px; }
 
 /* ---------- Getränkeliste ---------- */
 .drink-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

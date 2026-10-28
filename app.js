@@ -33,13 +33,14 @@
   /* ---------- Zustand & Speicher ---------- */
 
   const MAX_AGE_MS = 24 * 3600 * 1000; // Getränke verschwinden nach 24 h
+  const MAX_FAVORITES = 30;
 
   let firstVisit = false;
   let state = load();
   const listeners = [];
 
   function freshState() {
-    return { person: { ...DEFAULT_PERSON }, drinks: [], updatedAt: 0 };
+    return { person: { ...DEFAULT_PERSON }, drinks: [], favorites: [], updatedAt: 0 };
   }
 
   /** Daten aus Speicher oder Cloud in ein sauberes Format bringen. */
@@ -57,6 +58,17 @@
             vol: String(d.vol ?? ''),
             time: String(d.time || ''),
             addedAt: Number.isFinite(d.addedAt) ? d.addedAt : now,
+          }))
+        : [],
+      favorites: Array.isArray(data && data.favorites)
+        ? data.favorites
+          .filter((f) => f && typeof f.id === 'string' && Number(f.cl) > 0 && Number(f.vol) > 0)
+          .slice(0, MAX_FAVORITES)
+          .map((f) => ({
+            id: f.id,
+            name: String(f.name || 'Getränk').slice(0, 40),
+            cl: Number(f.cl),
+            vol: Number(f.vol),
           }))
         : [],
       updatedAt: Number.isFinite(data && data.updatedAt) ? data.updatedAt : 0,
@@ -185,36 +197,116 @@
 
   let openAfterRender = null;
 
-  function initPresets() {
+  let editingFavorites = false;
+
+  function presetButton(p, extraClass) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'preset' + (extraClass ? ' ' + extraClass : '');
+    b.dataset.name = p.name;
+    b.setAttribute('aria-label', `${p.name} hinzufügen (${numToInput(p.cl)} cl, ${numToInput(p.vol)} %)`);
+    b.innerHTML = `<b></b><small>${numToInput(p.cl)} cl</small><span class="badge" hidden></span>`;
+    $('b', b).textContent = p.short || p.name;
+    b.addEventListener('click', () => {
+      addDrink(p.name, p.cl, p.vol);
+      flash(b);
+    });
+    return b;
+  }
+
+  function renderPresets() {
     const box = $('#presets');
-    PRESETS.forEach((p) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'preset';
-      b.dataset.name = p.name;
-      b.setAttribute('aria-label', `${p.name} hinzufügen (${numToInput(p.cl)} cl, ${numToInput(p.vol)} %)`);
-      b.innerHTML = `<b></b><small>${numToInput(p.cl)} cl</small><span class="badge" hidden></span>`;
-      $('b', b).textContent = p.short;
-      b.addEventListener('click', () => {
-        addDrink(p.name, p.cl, p.vol);
-        flash(b);
-      });
+    box.textContent = '';
+    if (!state.favorites.length) editingFavorites = false;
+
+    // Eigene Shortcuts zuerst
+    state.favorites.forEach((f) => {
+      let b;
+      if (editingFavorites) {
+        b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'preset favorite removing';
+        b.setAttribute('aria-label', `Shortcut ${f.name} entfernen`);
+        b.innerHTML = '<b></b><small>entfernen</small><span class="remove-x" aria-hidden="true">✕</span>';
+        $('b', b).textContent = f.name;
+        b.addEventListener('click', () => removeFavorite(f.id));
+      } else {
+        b = presetButton(f, 'favorite');
+      }
       box.appendChild(b);
     });
 
-    const custom = document.createElement('button');
-    custom.type = 'button';
-    custom.className = 'preset custom';
-    custom.innerHTML = '<b>+ Eigenes</b><small>selbst eingeben</small>';
-    custom.addEventListener('click', () => {
-      const id = addDrink('Eigenes Getränk', '', '', true);
-      const row = $(`#drink-list .drink[data-id="${id}"]`);
-      if (row) {
-        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        $('.drink-cl', row).focus({ preventScroll: true });
-      }
+    if (!editingFavorites) {
+      PRESETS.forEach((p) => box.appendChild(presetButton(p)));
+
+      const custom = document.createElement('button');
+      custom.type = 'button';
+      custom.className = 'preset custom';
+      custom.innerHTML = '<b>+ Eigenes</b><small>selbst eingeben</small>';
+      custom.addEventListener('click', () => {
+        const id = addDrink('Eigenes Getränk', '', '', true);
+        const row = $(`#drink-list .drink[data-id="${id}"]`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          $('.drink-cl', row).focus({ preventScroll: true });
+        }
+      });
+      box.appendChild(custom);
+    }
+
+    const editBtn = $('#edit-favorites');
+    editBtn.hidden = state.favorites.length === 0;
+    editBtn.textContent = editingFavorites ? 'Fertig' : 'Shortcuts bearbeiten';
+    updateBadges();
+  }
+
+  function saveFavorite(d) {
+    const cl = C.parseNumber(d.cl);
+    const vol = C.parseNumber(d.vol);
+    if (!(cl > 0) || !(vol > 0)) {
+      showToast('Zuerst Menge und Alkohol eingeben', null);
+      return;
+    }
+    const name = ((d.name || '').trim() || 'Getränk').slice(0, 40);
+    if (state.favorites.some((f) => f.name === name && f.cl === cl && f.vol === vol)) {
+      showToast(`${name} ist schon gespeichert`, null);
+      return;
+    }
+    if (state.favorites.length >= MAX_FAVORITES) {
+      showToast(`Höchstens ${MAX_FAVORITES} Shortcuts möglich`, null);
+      return;
+    }
+    const fav = { id: newId(), name, cl, vol };
+    state.favorites.push(fav);
+    renderPresets();
+    changed();
+    showToast(`${name} als Shortcut gespeichert`, () => {
+      state.favorites = state.favorites.filter((f) => f.id !== fav.id);
+      renderPresets();
+      changed();
     });
-    box.appendChild(custom);
+  }
+
+  function removeFavorite(id) {
+    const index = state.favorites.findIndex((f) => f.id === id);
+    if (index < 0) return;
+    const [removed] = state.favorites.splice(index, 1);
+    renderPresets();
+    changed();
+    showToast(`${removed.name} entfernt`, () => {
+      state.favorites.splice(Math.min(index, state.favorites.length), 0, removed);
+      renderPresets();
+      changed();
+    });
+  }
+
+  function initPresets() {
+    renderPresets();
+
+    $('#edit-favorites').addEventListener('click', () => {
+      editingFavorites = !editingFavorites;
+      renderPresets();
+    });
 
     $('#clear-drinks').addEventListener('click', () => {
       if (!state.drinks.length) return;
@@ -325,6 +417,12 @@
     });
 
     list.addEventListener('click', (e) => {
+      const favBtn = e.target.closest('.drink-fav');
+      if (favBtn) {
+        const d = state.drinks.find((x) => x.id === favBtn.closest('.drink').dataset.id);
+        if (d) saveFavorite(d);
+        return;
+      }
       const btn = e.target.closest('.drink-del');
       if (!btn) return;
       e.preventDefault(); // nicht auf-/zuklappen
@@ -599,6 +697,7 @@
       state = normalize(data);
       save();
       fillProfileForm();
+      renderPresets();
       renderDrinks();
       update();
     },
@@ -607,6 +706,7 @@
       state = freshState();
       try { window.localStorage.removeItem(STORAGE_KEY); } catch (e) { /* egal */ }
       fillProfileForm();
+      renderPresets();
       renderDrinks();
       update();
     },

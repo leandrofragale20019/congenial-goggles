@@ -75,7 +75,10 @@
 
     <!-- Getränk hinzufügen -->
     <section class="block" aria-labelledby="add-title">
-      <h2 id="add-title">Getränk hinzufügen</h2>
+      <div class="block-head">
+        <h2 id="add-title">Getränk hinzufügen</h2>
+        <button type="button" id="edit-favorites" class="link-btn" hidden>Shortcuts bearbeiten</button>
+      </div>
       <div class="presets" id="presets"></div>
     </section>
 
@@ -243,6 +246,7 @@
             <label class="field"><span class="field-label">Alkohol</span><span class="input-unit"><input class="drink-vol" type="text" inputmode="decimal"><span>%</span></span></label>
             <label class="field"><span class="field-label">Uhrzeit</span><input class="drink-time" type="time"></label>
           </div>
+          <button type="button" class="link-btn drink-fav">☆ Als Shortcut speichern</button>
         </div>
       </details>
     </li>
