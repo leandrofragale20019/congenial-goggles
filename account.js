@@ -262,6 +262,7 @@ async function main() {
     return {
       person: s.person,
       drinks: (s.drinks || []).slice(-MAX_DRINKS),
+      favorites: (s.favorites || []).slice(0, 30),
       updatedAt: Math.round(s.updatedAt || Date.now()),
     };
   }
@@ -273,7 +274,9 @@ async function main() {
     const drinks = (remote.drinks || []).concat((local.drinks || []).filter((d) => !ids.has(d.id)));
     drinks.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
     const person = (local.updatedAt || 0) >= (remote.updatedAt || 0) ? local.person : remote.person;
-    return { person, drinks };
+    const favIds = new Set((remote.favorites || []).map((f) => f.id));
+    const favorites = (remote.favorites || []).concat((local.favorites || []).filter((f) => !favIds.has(f.id)));
+    return { person, drinks, favorites };
   }
 
   async function push() {
